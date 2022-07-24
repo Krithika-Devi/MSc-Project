@@ -1,4 +1,5 @@
-# MSc-Project
+# Survival Analysis Project 
+# MSc Statistics
 A Comparison study of Random Survival Forest and Cox Proportional Hazards for predicting the survival risk of 76-gene prognostic signature from breast cancer.
 
 1. Basic Concepts of Survival Analysis
