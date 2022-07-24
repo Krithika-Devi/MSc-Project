@@ -1,0 +1,29 @@
+install.packages("pec")
+library(pec)
+rfsrc.df.test = predict.rfsrc(rfsrc.df, newdata = ddft.test)
+rfsrc.df.test
+test_survprob = predictSurvProb(rfsrc.df, newdata = ddft.test,times = 
+median(ddft.test$days))
+test_survprob
+plot.survival.rfsrc(rfsrc.df)
+plot(gg_rfsrc(rfsrc.df.test))+
+ theme(legend.position = "none")+
+ labs(y = "Survival Probability", x = "Time (days)")+
+ coord_cartesian(ylim = c(-0.01, 1.01))
+plot(gg_rfsrc(rfsrc.df.test, by = "er"))+
+ theme(legend.position = c(0.2, 0.2))+
+ labs(y = "Survival Probability", x = "Time (days)")+
+ coord_cartesian(ylim = c(-0.01, 1.01))
+library(rms)
+library(risksetROC)
+err.rate.rsf_test = rfsrc.df.test$err.rate[rfsrc.df.test$ntree]
+err.rate.rsf_test
+cind_rf_test<-rcorr.cens(-rfsrc.df.test$predicted, 
+Surv(ddft.test$days, ddft.test$status))["C Index"]
+cind_rf_test
+w.ROC_test = risksetROC(Stime = ddft.test$days, 
+ status = ddft.test$status, marker = rfsrc.df.test$predicted, 
+ predict.time = median(ddft.test$days), method = "Cox", 
+ main = paste("OOB Survival ROC Curve at median = 4598.5 days"), 
+ lwd = 3, col = "red" )
+ w.ROC_test
