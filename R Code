@@ -1,0 +1,85 @@
+library(survival)
+library(tidyverse)
+library(caret)
+library(randomForestSRC) # package for random forest
+library(ggRandomForests) # package for random forest
+library(ggplot2)
+library(ggpubr)
+library(survivalROC)
+library(dplyr)
+ddft<-read.csv(file.choose(),header = T)
+ddft[sapply(ddft,is.character)]<-lapply(ddft[sapply(ddft, is.character)],as.factor)
+str(ddft)
+data.frame(sapply(ddft,class))
+set.seed(2110)
+train<-sample(1:198,178,replace = FALSE)
+train
+ddft.trial = ddft[train,]
+ddft.test = ddft[-train,]
+install.packages("survminer")
+library(survminer)
+#Kaplan-Meir
+km <- survfit(Surv(days, status==1) ~ 1,
+ data = ddft)
+ggsurvplot(km,
+ data = ddft.trial,
+ size = 1, # change line size
+ risk.table = TRUE, # Add risk table
+ break.time.by=365,
+ risk.table.col = "strata",# Risk table color by groups
+ legend.labs ="1", # Change legend labels
+ risk.table.height = 0.25, # Useful to change when you have multiple groups
+ ggtheme = theme_bw() # Change ggplot2 theme
+)
+#CPH
+cox_survival <- survival::coxph(Surv(days, status==1) ~ ., data = ddft.trial, method = 'efron')
+summary(cox_survival)
+ddft.test$lp <- predict(cox_survival,type="lp", newdata = ddft.test)
+ddft.test$lp
+summary(ddft.test$lp)
+cind_cox_test <- survival::concordance(cox_survival, newdata = ddft.test)$concordance
+round(cind_cox_test, 4)
+roc<-survivalROC(Stime = ddft.test$days, 
+ status = ddft.test$status, 
+ marker = ddft.test$lp,
+ predict.time = median(ddft.test$days),
+ method="KM")
+roc
+# RSF
+set.seed(999)
+rfsrc.df = rfsrc(Surv(days, status) ~ ., # survival object
+ data = ddft.trial, # data
+ mtry=9,
+ ntree = 250,
+ nsplit = 50, # number of random splits to consider 
+ #na.action = "na.impute", # imputing missing data
+ #tree.err = TRUE,
+ #seed = -9,
+ #nodesize = 150,
+ #oob=TRUE,
+ splitrule = "logrank",
+ importance = TRUE) # variable importance
+rfsrc.df
+par(mar = c(2,2,2,2))
+plot(rfsrc.df)
+plot(gg_error(rfsrc.df))
+dev.off()
+vimp<-sort(rfsrc.df$importance, decreasing = T)
+round(vimp,4)
+plot(gg_vimp(rfsrc.df))+
+ theme(legend.position = c(0.8, 0.2))+
+ labs(fill = "Var_Imp > 0")
+ggRFsrc = plot(gg_rfsrc(rfsrc.df))+
+ theme(legend.position = "none" )+
+ labs(y = "Survival Probability", x = "Time (days)")+
+ coord_cartesian(ylim = c(-0.01, 1.01))
+show(ggRFsrc)
+library(devtools)
+devtools::install_github('araastat/reprtree')
+library(reprtree)
+plot(get.tree.rfsrc(rfsrc.df,1))
+plot(get.tree.rfsrc(rfsrc.df,1000))
+plot(gg_rfsrc(rfsrc.df, by = "er"))+
+ theme(legend.position = c(0.2, 0.2))+
+ labs(y = "Survival Probability", x = "Time (days)")+
+ coord_cartesian(ylim = c(-0.01, 1.01))
